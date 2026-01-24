@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KumarBrothers | Settings</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+  :root{
+    --kb-bg:#f6f8fa; --kb-card:#ffffff; --kb-muted:#6c757d; --kb-accent:#0d6efd; --kb-danger:#b02a37;
+  }
+  body{background:var(--kb-bg);font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;color:#111;}
+
+  .settings-wrapper{max-width:980px;margin:28px auto;padding:16px}
+  .settings-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+  .settings-header h3{margin:0;font-weight:600}
+
+  .list-group{background:transparent}
+  .list-group-item{border-radius:10px;background:var(--kb-card);padding:18px;border:1px solid rgba(15,23,42,0.04);display:flex;align-items:center;justify-content:space-between}
+  .list-group-item + .list-group-item{margin-top:12px}
+  .list-group-item strong{display:block;font-size:16px}
+  .list-group-item .small{color:var(--kb-muted)}
+  .list-group-item-danger{background:linear-gradient(90deg,#fff5f5,#fff);border-color:#ffd6d6;color:#842029}
+
+  /* subtle hover */
+  .list-group-item-action:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(15,23,42,0.06)}
+
+  /* responsive */
+  @media (max-width:767px){.settings-wrapper{padding:10px;margin:12px}.list-group-item{padding:12px}}
+  </style>
+</head>
+<body>
+  <div class="settings-wrapper">
+
+    <div class="settings-header">
+      <h3>Settings</h3>
+      <a href="index.html" class="btn btn-sm btn-outline-secondary">Back</a>
+    </div>
+
+    <div class="list-group">
+      <a href="account-settings.html" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+        <div>
+          <strong>Account & Security</strong>
+          <div class="small text-muted">View profile and change password</div>
+        </div>
+        <div class="text-muted">→</div>
+      </a>
+
+      <a href="notification-settings.html" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center mt-2">
+        <div>
+          <strong>Notifications</strong>
+          <div class="small text-muted">Manage in-app notification preferences</div>
+        </div>
+        <div class="text-muted">→</div>
+      </a>
+  </div>
+
+  <script>
+    const API_BASE = 'http://127.0.0.1:8001';
+    function showToast(msg, type='info'){
+      const el = document.createElement('div'); el.className = `toast align-items-center text-bg-${type} border-0`; el.role='alert'; el.ariaLive='assertive'; el.ariaAtomic='true';
+      el.style.position='fixed'; el.style.right='20px'; el.style.top='20px'; el.style.zIndex=9999; el.style.padding='10px'; el.innerText = msg;
+      document.body.appendChild(el); setTimeout(()=>el.remove(),3000);
+    }
+
+    async function apiFetch(path, opts={}){
+      opts.headers = opts.headers || {};
+      const token = localStorage.getItem('kb_token');
+      if(token) opts.headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(API_BASE + path, opts);
+      return res;
+    }
+
+    async function loadProfile(){
+      try{
+        const r = await apiFetch('/users/me');
+        if(!r.ok){ showToast('Failed to load profile', 'danger'); return; }
+        const p = await r.json();
+        document.getElementById('pf-fullname').innerText = p.full_name || '';
+        document.getElementById('pf-username').innerText = p.username || '';
+        document.getElementById('pf-email').innerText = p.email || '';
+        document.getElementById('pf-role').innerText = p.role || '';
+      }catch(err){ showToast('Profile error: '+err.message, 'danger'); }
+    }
+
+    document.getElementById('changePwForm').addEventListener('submit', async function(e){
+      e.preventDefault();
+      const oldPw = document.getElementById('oldPw').value.trim();
+      const newPw = document.getElementById('newPw').value.trim();
+      const confirmPw = document.getElementById('confirmPw').value.trim();
+      const status = document.getElementById('pwStatus'); status.innerHTML = '';
+      if(newPw !== confirmPw){ status.innerHTML = '<div class="text-danger small">New passwords do not match</div>'; return; }
+      try{
+        const r = await apiFetch('/users/change-password', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ old_password: oldPw, new_password: newPw }) });
+        const j = await r.json();
+        if(!r.ok){ status.innerHTML = `<div class='text-danger small'>${j.detail || j.message || 'Failed'}</div>`; return; }
+        status.innerHTML = `<div class='text-success small'>${j.message || 'Password changed'}</div>`;
+      }catch(err){ status.innerHTML = `<div class='text-danger small'>Error: ${err.message}</div>`; }
+    });
+
+    // Logout actions
+    document.getElementById('logoutBtn').addEventListener('click', ()=>{
+      localStorage.removeItem('kb_token');
+      localStorage.removeItem('kb_role');
+      window.location.href = 'login.html';
+    });
+    document.getElementById('manualLogout').addEventListener('click', ()=>{
+      localStorage.removeItem('kb_token');
+      showToast('Local token cleared', 'warning');
+    });
+
+    // init
+    loadProfile();
+    // load notification settings
+    async function loadNotifSettings(){
+      try{
+        const r = await apiFetch('/notifications/settings');
+        if(!r.ok){ console.warn('Failed to load notif settings'); return; }
+        const s = await r.json();
+        document.getElementById('ns-instr').checked = !!s.instr_from_boss;
+        document.getElementById('ns-stage').checked = !!s.stage_changes;
+        document.getElementById('ns-query-raised').checked = !!s.query_raised;
+        document.getElementById('ns-query-response').checked = !!s.query_response;
+        document.getElementById('ns-low-inv').checked = !!s.low_inventory;
+        document.getElementById('ns-dispatch').checked = !!s.dispatch_completed;
+      }catch(err){ console.warn('notif load error', err); }
+    }
+
+    document.getElementById('saveNotifBtn').addEventListener('click', async ()=>{
+      const payload = {
+        instr_from_boss: document.getElementById('ns-instr').checked,
+        stage_changes: document.getElementById('ns-stage').checked,
+        query_raised: document.getElementById('ns-query-raised').checked,
+        query_response: document.getElementById('ns-query-response').checked,
+        low_inventory: document.getElementById('ns-low-inv').checked,
+        dispatch_completed: document.getElementById('ns-dispatch').checked
+      };
+      try{
+        const r = await apiFetch('/notifications/settings', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        const j = await r.json();
+        if(!r.ok){ showToast(j.detail || 'Failed to save', 'danger'); return; }
+        showToast('Notification settings saved', 'success');
+      }catch(err){ showToast('Error saving settings: '+err.message, 'danger'); }
+    });
+
+    loadNotifSettings();
+  </script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KumarBrothers | Notifications</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    :root{--kb-bg:#f6f8fa;--kb-card:#fff;--kb-muted:#6c757d;--kb-accent:#0d6efd}
+    body{background:var(--kb-bg);font-family:Inter,system-ui,Arial,sans-serif;color:#0f1724}
+    .card{max-width:900px;margin:28px auto;padding:20px;background:var(--kb-card);border-radius:12px;box-shadow:0 10px 30px rgba(2,6,23,0.06)}
+    .settings-subtitle{color:var(--kb-muted);margin-bottom:12px}
+    .notif-item{display:flex;justify-content:space-between;align-items:center;padding:12px;border-radius:8px;background:#fbfdff;margin-bottom:8px;border:1px solid rgba(15,23,42,0.04)}
+    .notif-item span{font-size:15px}
+    .btn-primary{background:var(--kb-accent);border-color:var(--kb-accent)}
+    @media (max-width:767px){.card{margin:12px;padding:14px}}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h3>Notification Settings</h3>
+      <a href="settings.html" class="btn btn-sm btn-outline-secondary">Back</a>
+    </div>
+
+    <div class="settings-subtitle mb-3">Choose when the system should notify you (in-app)</div>
+
+    <div class="notif-item">
+      <span>New instructions from Boss</span>
+      <input class="form-check-input" type="checkbox" id="ns-instr">
+    </div>
+    <div class="notif-item">
+      <span>Stage status changes</span>
+      <input class="form-check-input" type="checkbox" id="ns-stage">
+    </div>
+    <div class="notif-item">
+      <span>Query raised on project</span>
+      <input class="form-check-input" type="checkbox" id="ns-query-raised">
+    </div>
+    <div class="notif-item">
+      <span>Query response received</span>
+      <input class="form-check-input" type="checkbox" id="ns-query-response">
+    </div>
+    <div class="notif-item">
+      <span>Low inventory alerts</span>
+      <input class="form-check-input" type="checkbox" id="ns-low-inv">
+    </div>
+    <div class="notif-item">
+      <span>Dispatch completed</span>
+      <input class="form-check-input" type="checkbox" id="ns-dispatch">
+    </div>
+
+    <div class="mt-3">
+      <button id="saveNotifBtn" class="btn btn-primary btn-sm">Save notification settings</button>
+    </div>
+
+  </div>
+
+  <script>
+    const API_BASE = 'http://127.0.0.1:8001';
+    function showToast(msg, type='info'){
+      const el = document.createElement('div'); el.className = `toast align-items-center text-bg-${type} border-0`; el.role='alert'; el.ariaLive='assertive'; el.ariaAtomic='true';
+      el.style.position='fixed'; el.style.right='20px'; el.style.top='20px'; el.style.zIndex=9999; el.style.padding='10px'; el.innerText = msg;
+      document.body.appendChild(el); setTimeout(()=>el.remove(),3000);
+    }
+
+    async function apiFetch(path, opts={}){
+      opts.headers = opts.headers || {};
+      const token = localStorage.getItem('kb_token');
+      if(token) opts.headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(API_BASE + path, opts);
+      return res;
+    }
+
+    async function loadNotifSettings(){
+      try{
+        const r = await apiFetch('/notifications/settings');
+        if(!r.ok){ showToast('Failed to load notif settings', 'warning'); return; }
+        const s = await r.json();
+        document.getElementById('ns-instr').checked = !!s.instr_from_boss;
+        document.getElementById('ns-stage').checked = !!s.stage_changes;
+        document.getElementById('ns-query-raised').checked = !!s.query_raised;
+        document.getElementById('ns-query-response').checked = !!s.query_response;
+        document.getElementById('ns-low-inv').checked = !!s.low_inventory;
+        document.getElementById('ns-dispatch').checked = !!s.dispatch_completed;
+      }catch(err){ showToast('Error loading notification settings: '+err.message,'danger'); }
+    }
+
+    document.getElementById('saveNotifBtn').addEventListener('click', async ()=>{
+      const payload = {
+        instr_from_boss: document.getElementById('ns-instr').checked,
+        stage_changes: document.getElementById('ns-stage').checked,
+        query_raised: document.getElementById('ns-query-raised').checked,
+        query_response: document.getElementById('ns-query-response').checked,
+        low_inventory: document.getElementById('ns-low-inv').checked,
+        dispatch_completed: document.getElementById('ns-dispatch').checked
+      };
+      try{
+        const r = await apiFetch('/notifications/settings', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        const j = await r.json();
+        if(!r.ok){ showToast(j.detail || 'Failed to save', 'danger'); return; }
+        showToast('Notification settings saved', 'success');
+      }catch(err){ showToast('Error saving settings: '+err.message, 'danger'); }
+    });
+
+    // init
+    loadNotifSettings();
+  </script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KumarBrothers | Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<!-- NAVBAR (shared markup used across pages) -->
+<nav class="kb-navbar d-flex align-items-center justify-content-between" role="navigation" aria-label="Main navigation">
+  <div class="d-flex align-items-center gap-3">
+    <div class="navbar-brand">KumarBrothers</div>
+      <div class="d-none d-lg-flex">
+      <a class="nav-link text-white ms-3" href="index.html">Dashboard</a>
+      <a class="nav-link text-white ms-3" href="raw_material.html">Inventory</a>
+      <a class="nav-link text-white ms-3" href="customers.html">Customers</a>
+      <a class="nav-link text-white ms-3" href="queries.html">Queries</a>
+      <a class="nav-link text-white ms-3" href="instructions.html">Instructions</a>
+        <a class="nav-link text-white ms-3" href="settings.html">Settings</a>
+      <a class="nav-link text-white ms-3 kb-logout" href="#">Logout</a>
+    </div>
+  </div>
+  <div class="d-flex align-items-center gap-3">
+    <div class="small-muted" aria-hidden="true">Role:</div>
+    <div id="current-role" class="role-badge" aria-live="polite">Software Supervisor</div>
+    <div class="dropdown">
+      <button class="btn btn-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">Switch Role</button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><a class="dropdown-item role-switch" data-role="Boss" href="#">Boss</a></li>
+        <li><a class="dropdown-item role-switch" data-role="Software Supervisor" href="#">Software Supervisor</a></li>
+        <li><a class="dropdown-item role-switch" data-role="User" href="#">User</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+  <!-- Stage Summary Cards -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <div class="card p-3">
+        <small class="text-muted">Fabrication</small>
+        <h4 id="stageFabrication">0 Jobs</h4>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card p-3">
+        <small class="text-muted">Painting</small>
+        <h4 id="stagePainting">0 Jobs</h4>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card p-3">
+        <small class="text-muted">Dispatch</small>
+        <h4 id="stageDispatch">0 Jobs</h4>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mid Section: Chart + Live Status -->
+    <div class="row g-4 mb-3">
+      <div class="col-md-8">
+          <div class="card p-4 kb-card">
+            <h6 class="kb-section-title">Material Usage</h6>
+            <canvas id="materialChart" style="height:260px" aria-label="Material usage chart" role="img"></canvas>
+          </div>
+      </div>
+      <div class="col-md-4">
+          <div class="card p-4 kb-card">
+            <h6 class="kb-section-title">Live Status</h6>
+          <div class="mb-3 d-flex justify-content-between align-items-center">
+            <div>
+              <div class="small text-muted">Active Customers</div>
+              <div class="h5 mb-0">24</div>
+            </div>
+            <div>
+                <span class="badge badge-success">24 Active</span>
+            </div>
+          </div>
+          <div class="mb-2 d-flex justify-content-between align-items-center">
+            <div>
+              <div class="small text-muted">Current Stages</div>
+              <div class="h6 mb-0">Assembly / Painting</div>
+            </div>
+          </div>
+          <div class="small text-muted">Alerts</div>
+          <ul class="mb-0 mt-2">
+            <li class="text-danger">Low stock: Steel Sheet (800 kg)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  <!-- Live Production Status -->
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      <h5 class="fw-semibold mb-3">Live Production Status</h5>
+
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Customer</th>
+              <th>Item</th>
+              <th>Fabrication</th>
+              <th>Painting</th>
+              <th>Dispatch</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>ABC Industries</td>
+              <td>Stair Stringer</td>
+              <td><span class="badge bg-success">Completed</span></td>
+              <td><span class="badge bg-warning text-dark">In Progress</span></td>
+              <td><span class="badge bg-secondary">Pending</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-body">
+        <h5 class="fw-semibold mb-3">Latest Instructions</h5>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

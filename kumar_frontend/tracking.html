@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>KumarBrothers — Production Tracking</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/main.css" rel="stylesheet">
+  </head>
+  <body>
+    <nav class="kb-navbar d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-3">
+        <div class="navbar-brand">KumarBrothers</div>
+          <div class="d-none d-lg-flex">
+          <a class="nav-link text-white ms-3" href="index.html">Dashboard</a>
+          <a class="nav-link text-white ms-3" href="raw_material.html">Inventory</a>
+          <a class="nav-link text-white ms-3" href="customers.html">Customers</a>
+          <a class="nav-link text-white ms-3" href="queries.html">Queries</a>
+          <a class="nav-link text-white ms-3" href="instructions.html">Instructions</a>
+          <a class="nav-link text-white ms-3 kb-logout" href="#">Logout</a>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-3">
+        <div class="small-muted">Role:</div>
+        <div id="current-role" class="role-badge">Software Supervisor</div>
+        <div class="dropdown">
+          <button class="btn btn-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">Switch Role</button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item role-switch" data-role="Boss" href="#">Boss</a></li>
+            <li><a class="dropdown-item role-switch" data-role="Software Supervisor" href="#">Software Supervisor</a></li>
+            <li><a class="dropdown-item role-switch" data-role="User" href="#">User</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container-fluid main-container">
+      <!-- Page Header -->
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2 class="fw-bold mb-0">Production Tracking</h2>
+          <small class="text-muted">Track materials across fabrication, painting & dispatch</small>
+        </div>
+      </div>
+
+      <!-- Advanced Search & Filters -->
+      <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+          <div class="row g-3 align-items-end">
+
+            <div class="col-md-3">
+              <label class="form-label">Search Item</label>
+              <input type="text" class="form-control" id="searchItem" placeholder="Item name / Code / Section">
+            </div>
+
+            <div class="col-md-2">
+              <label class="form-label">Customer</label>
+              <input type="text" class="form-control" id="searchCustomer" placeholder="Customer name">
+            </div>
+
+            <div class="col-md-2">
+              <label class="form-label">Stage</label>
+              <select class="form-select" id="filterStage">
+                <option value="">All</option>
+                <option value="Fabrication">Fabrication</option>
+                <option value="Painting">Painting</option>
+                <option value="Dispatch">Dispatch</option>
+              </select>
+            </div>
+
+            <div class="col-md-2">
+              <label class="form-label">Stage Status</label>
+              <select class="form-select" id="filterStatus">
+                <option value="">All</option>
+                <option value="pending">Pending</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+
+            <div class="col-md-1">
+              <label class="form-label">Min Qty</label>
+              <input type="number" class="form-control" id="minQty">
+            </div>
+
+            <div class="col-md-1">
+              <label class="form-label">Max Qty</label>
+              <input type="number" class="form-control" id="maxQty">
+            </div>
+
+            <div class="col-md-1 d-grid">
+              <button class="btn btn-primary" id="applyTrackingBtn" type="button">Search</button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Stage-Wise Tracking Table -->
+      <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+          <h5 class="fw-semibold mb-3">Tracking Details</h5>
+
+          <div class="table-responsive">
+            <table class="table align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Customer</th>
+                  <th>Item</th>
+                  <th>Section</th>
+                  <th>Qty</th>
+                  <th>Fabrication</th>
+                  <th>Painting</th>
+                  <th>Dispatch</th>
+                </tr>
+              </thead>
+              <tbody id="trackingTableBody">
+                <!-- Rows will be rendered by page script -->
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Empty / No Results State -->
+      <div class="text-center text-muted py-4 d-none" id="noTrackingResults">No tracking records found for the selected filters.</div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      (function(){
+        const apiBase = 'http://127.0.0.1:8001/tracking/customers';
+        const btn = document.getElementById('applyTrackingBtn');
+        const tbody = document.getElementById('trackingTableBody');
+        const emptyEl = document.getElementById('noTrackingResults');
+
+        function buildParams(){
+          const p = new URLSearchParams();
+          const item = document.getElementById('searchItem').value.trim();
+          const customer = document.getElementById('searchCustomer').value.trim();
+          const stage = document.getElementById('filterStage').value;
+          const status = document.getElementById('filterStatus').value;
+          const minQty = document.getElementById('minQty').value;
+          const maxQty = document.getElementById('maxQty').value;
+
+          if(item){ p.append('item_name', item); p.append('search', item); }
+          if(customer) p.append('name', customer);
+          if(stage) p.append('stage', stage);
+          if(status) p.append('stage_status', status);
+          if(minQty) p.append('quantity_min', minQty);
+          if(maxQty) p.append('quantity_max', maxQty);
+
+          return p.toString();
+        }
+
+        async function applyTrackingFilters(){
+          try{
+            const qs = buildParams();
+            const url = qs ? `${apiBase}?${qs}` : apiBase;
+            const res = await fetch(url);
+            if(!res.ok) throw new Error('Fetch failed');
+            const data = await res.json();
+            renderTracking(data||[]);
+          }catch(err){
+            console.error('Tracking fetch error', err);
+            renderTracking([]);
+          }
+        }
+
+        function renderTracking(items){
+          tbody.innerHTML = '';
+          if(!items || items.length === 0){
+            emptyEl.classList.remove('d-none');
+            return;
+          }
+          emptyEl.classList.add('d-none');
+
+          items.forEach(it=>{
+            // it may represent a customer with production items; map defensively
+            const customer = it.name || it.customer || '';
+            const rows = (it.items && it.items.length) ? it.items : (it.production_items || [{ name: it.item_name || '', section: it.section || '', quantity: it.quantity || (it.qty || 0), fabrication_status: it.fabrication_status, painting_status: it.painting_status, dispatch_status: it.dispatch_status }]);
+
+            // if no items array, render as single row
+            if(!Array.isArray(rows)) rows = [rows];
+
+            rows.forEach(r=>{
+              const tr = document.createElement('tr');
+              const qty = r.quantity || r.qty || 0;
+              const fab = statusBadge(r.fabrication_status || r.stage_status || (it.current_stage === 'Fabrication' ? it.stage_status : ''));
+              const paint = statusBadge(r.painting_status || '');
+              const disp = statusBadge(r.dispatch_status || '');
+
+              tr.innerHTML = `
+                <td>${escapeHtml(customer)}</td>
+                <td>${escapeHtml(r.name || r.item_name || '')}</td>
+                <td>${escapeHtml(r.section || '')}</td>
+                <td>${escapeHtml(String(qty))}</td>
+                <td>${fab}</td>
+                <td>${paint}</td>
+                <td>${disp}</td>
+              `;
+              tbody.appendChild(tr);
+            });
+          });
+        }
+
+        function statusBadge(s){
+          if(!s) return `<span class=\"badge bg-secondary\">N/A</span>`;
+          const st = String(s).toLowerCase();
+          if(st.includes('compl') || st === 'completed') return `<span class=\"badge bg-success\">Completed</span>`;
+          if(st.includes('in') || st.includes('progress')) return `<span class=\"badge bg-warning text-dark\">In Progress</span>`;
+          if(st.includes('pend')) return `<span class=\"badge bg-secondary\">Pending</span>`;
+          return `<span class=\"badge bg-secondary\">${escapeHtml(s)}</span>`;
+        }
+
+        function escapeHtml(s){ return String(s||'').replace(/[&<>"]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+
+        // Attach handler
+        if(btn) btn.addEventListener('click', applyTrackingFilters);
+
+        // Allow pressing Enter in inputs to trigger search
+        ['searchItem','searchCustomer'].forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); applyTrackingFilters(); } }); });
+
+        // Initial load
+        applyTrackingFilters();
+
+      })();
+    </script>
+  </body>
+</html>

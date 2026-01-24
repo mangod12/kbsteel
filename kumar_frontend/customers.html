@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>KumarBrothers — Customers</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/main.css" rel="stylesheet">
+  </head>
+  <body>
+    <nav class="kb-navbar d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-3">
+        <div class="navbar-brand">KumarBrothers</div>
+          <div class="d-none d-lg-flex">
+          <a class="nav-link text-white ms-3" href="index.html">Dashboard</a>
+          <a class="nav-link text-white ms-3" href="raw_material.html">Inventory</a>
+          <a class="nav-link text-white ms-3" href="customers.html">Customers</a>
+          <a class="nav-link text-white ms-3" href="queries.html">Queries</a>
+          <a class="nav-link text-white ms-3" href="instructions.html">Instructions</a>
+          <a class="nav-link text-white ms-3 kb-logout" href="#">Logout</a>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-3">
+        <div class="small-muted">Role:</div>
+        <div id="current-role" class="role-badge">Software Supervisor</div>
+        <div class="dropdown">
+          <button class="btn btn-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">Switch Role</button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item role-switch" data-role="Boss" href="#">Boss</a></li>
+            <li><a class="dropdown-item role-switch" data-role="Software Supervisor" href="#">Software Supervisor</a></li>
+            <li><a class="dropdown-item role-switch" data-role="User" href="#">User</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container-fluid main-container">
+      <!-- Page Header -->
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2 class="fw-bold mb-0">Customers & Projects</h2>
+          <small class="text-muted">Overview of all active and completed customer projects</small>
+        </div>
+      </div>
+
+      <!-- Search & Filters -->
+      <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+          <div class="row g-3 align-items-end">
+
+            <div class="col-md-4">
+              <label class="form-label">Search Customer / Project</label>
+              <input type="text" class="form-control" id="searchCustomer" placeholder="Customer or project name">
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label">Project Status</label>
+              <select class="form-select" id="filterProjectStatus">
+                <option value="">All</option>
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label">Stage Focus</label>
+              <select class="form-select" id="filterStage">
+                <option value="">All</option>
+                <option value="Fabrication">Fabrication</option>
+                <option value="Painting">Painting</option>
+                <option value="Dispatch">Dispatch</option>
+              </select>
+            </div>
+
+            <div class="col-md-2 d-grid">
+              <button class="btn btn-primary" id="applyCustomerFiltersBtn" type="button">Search</button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Customers List Card -->
+      <div class="card shadow-sm border-0 mb-3">
+        <div class="card-body">
+          <h5 class="fw-semibold mb-3">Customer Projects</h5>
+
+          <div class="table-responsive">
+            <table class="table align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Customer</th>
+                  <th>Project</th>
+                  <th>Total Items</th>
+                  <th>Current Stage</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="customersTableBody">
+                <!-- Existing JS logic will populate rows when using main.js; this page script also renders when filters applied -->
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Empty / No Results State -->
+      <div class="text-center text-muted py-4 d-none" id="noCustomerResults">No customers found matching the selected filters.</div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+      (function(){
+        const api = 'http://127.0.0.1:8001/tracking/customers';
+        const btn = document.getElementById('applyCustomerFiltersBtn');
+        const tbody = document.getElementById('customersTableBody');
+        const emptyEl = document.getElementById('noCustomerResults');
+
+        function buildParams(){
+          const p = new URLSearchParams();
+          const s = document.getElementById('searchCustomer').value.trim();
+          const status = document.getElementById('filterProjectStatus').value;
+          const stage = document.getElementById('filterStage').value;
+          if(s) p.append('name', s);
+          if(status) p.append('status', status);
+          if(stage) p.append('stage', stage);
+          return p.toString();
+        }
+
+        async function applyCustomerFilters(){
+          try{
+            const qs = buildParams();
+            const url = qs ? `${api}?${qs}` : api;
+            const res = await fetch(url);
+            if(!res.ok) throw new Error('Fetch failed');
+            const data = await res.json();
+            renderCustomers(data||[]);
+          }catch(err){ console.error('Customer fetch error', err); renderCustomers([]); }
+        }
+
+        function renderCustomers(items){
+          tbody.innerHTML = '';
+          if(!items || items.length === 0){ emptyEl.classList.remove('d-none'); return; }
+          emptyEl.classList.add('d-none');
+
+          items.forEach(c=>{
+            const row = document.createElement('tr');
+            const totalItems = (c.items && c.items.length) ? c.items.length : (c.total_items || 0);
+            const curStage = c.current_stage || 'Pending';
+            const statusBadge = (c.status && c.status.toLowerCase()==='completed') ? '<span class="badge bg-success">Completed</span>' : '<span class="badge bg-warning text-dark">Active</span>';
+            row.innerHTML = `
+              <td>${escapeHtml(c.name || '')}</td>
+              <td>${escapeHtml(c.project || c.name || '')}</td>
+              <td>${escapeHtml(String(totalItems))}</td>
+              <td>${escapeHtml(curStage)}</td>
+              <td>${statusBadge}</td>
+              <td><a class="btn btn-sm btn-kb" href="customer_details.html?id=${c.id}">View</a></td>
+            `;
+            tbody.appendChild(row);
+          });
+        }
+
+        function escapeHtml(s){ return String(s||'').replace(/[&<>"]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+
+        if(btn) btn.addEventListener('click', applyCustomerFilters);
+        // allow Enter key in search input
+        const si = document.getElementById('searchCustomer'); if(si) si.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); applyCustomerFilters(); } });
+
+        // initial load
+        applyCustomerFilters();
+      })();
+    </script>
+  </body>
+</html>

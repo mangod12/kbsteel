@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>KumarBrothers — Raw Material</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/main.css" rel="stylesheet">
+  </head>
+  <body>
+    <nav class="kb-navbar d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-3">
+        <div class="navbar-brand">KumarBrothers</div>
+          <div class="d-none d-lg-flex">
+          <a class="nav-link text-white ms-3" href="index.html">Dashboard</a>
+          <a class="nav-link text-white ms-3" href="raw_material.html">Inventory</a>
+          <a class="nav-link text-white ms-3" href="customers.html">Customers</a>
+          <a class="nav-link text-white ms-3" href="queries.html">Queries</a>
+          <a class="nav-link text-white ms-3" href="instructions.html">Instructions</a>
+          <a class="nav-link text-white ms-3 kb-logout" href="#">Logout</a>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-3">
+        <div class="small-muted">Role:</div>
+        <div id="current-role" class="role-badge">Software Supervisor</div>
+        <div class="dropdown">
+          <button class="btn btn-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">Switch Role</button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item role-switch" data-role="Boss" href="#">Boss</a></li>
+            <li><a class="dropdown-item role-switch" data-role="Software Supervisor" href="#">Software Supervisor</a></li>
+            <li><a class="dropdown-item role-switch" data-role="User" href="#">User</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container-fluid main-container">
+      <!-- Page Header -->
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2 class="fw-bold mb-0">Inventory</h2>
+          <small class="text-muted">Raw material availability and usage tracking</small>
+        </div>
+      </div>
+
+      <!-- Search & Filter Bar -->
+      <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+          <div class="row g-3 align-items-end">
+
+            <div class="col-md-3">
+              <label class="form-label">Search Material</label>
+              <input type="text" class="form-control" id="fName" placeholder="Name / Code / Section">
+            </div>
+
+            <div class="col-md-2">
+              <label class="form-label">Category</label>
+              <select class="form-select" id="fCategory">
+                <option value="">All</option>
+                <option value="steel">Steel</option>
+                <option value="pipe">Pipe</option>
+                <option value="sheet">Sheet</option>
+              </select>
+            </div>
+
+            <div class="col-md-2">
+              <label class="form-label">Min Quantity</label>
+              <input type="number" class="form-control" id="fQtyMin">
+            </div>
+
+            <div class="col-md-2">
+              <label class="form-label">Max Quantity</label>
+              <input type="number" class="form-control" id="fQtyMax">
+            </div>
+
+            <div class="col-md-2">
+              <label class="form-label">Unit</label>
+              <select class="form-select" id="fUnit">
+                <option value="">All</option>
+                <option value="kg">KG</option>
+                <option value="pcs">PCS</option>
+                <option value="meter">Meter</option>
+              </select>
+            </div>
+
+            <div class="col-md-1 d-grid">
+              <button class="btn btn-primary" id="filterSearchBtn" type="button">Search</button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Inventory Table Card -->
+      <div class="card shadow-sm border-0 mb-3">
+        <div class="card-body">
+          <h5 class="fw-semibold mb-3">Material List</h5>
+
+          <div class="table-responsive">
+            <table id="inventoryTable" class="table align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Material Name</th>
+                  <th>Code</th>
+                  <th>Section</th>
+                  <th>Category</th>
+                  <th>Quantity</th>
+                  <th>Unit</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="inventoryTableBody">
+                <!-- Existing JS logic will populate rows -->
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Empty / No Results State -->
+      <div class="text-center text-muted py-4 d-none" id="noInventoryResults">No materials found matching the criteria.</div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+      // Small page-level script: show empty state when inventory table has no rows
+      (function(){
+        const tbody = document.getElementById('inventoryTableBody');
+        const emptyEl = document.getElementById('noInventoryResults');
+        if(!tbody || !emptyEl) return;
+
+        const updateEmptyState = ()=>{
+          const hasRows = tbody.querySelectorAll('tr').length > 0;
+          if(hasRows){ emptyEl.classList.add('d-none'); }
+          else { emptyEl.classList.remove('d-none'); }
+        };
+
+        // Observe changes to tbody (rows added/removed by main.js)
+        const mo = new MutationObserver(updateEmptyState);
+        mo.observe(tbody, { childList: true, subtree: false });
+
+        // Initial check (in case main.js already populated before observer attached)
+        setTimeout(updateEmptyState, 300);
+      })();
+    </script>
+  </body>
+</html>

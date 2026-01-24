@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KumarBrothers | Account</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    :root{--kb-bg:#f6f8fa;--kb-card:#fff;--kb-muted:#6c757d;--kb-accent:#0d6efd;--kb-danger:#b02a37}
+    body{background:var(--kb-bg);font-family:Inter,system-ui,Arial,sans-serif;color:#0f1724}
+    .card{max-width:900px;margin:28px auto;padding:22px;background:var(--kb-card);border-radius:12px;box-shadow:0 10px 30px rgba(2,6,23,0.06)}
+    h3{font-weight:700;margin:0}
+    #profileBox div{padding:6px 0;font-size:15px}
+    .form-label{font-size:13px;color:var(--kb-muted)}
+    .btn-primary{background:var(--kb-accent);border-color:var(--kb-accent)}
+    .danger-zone{border:1px solid #fde2e2;background:linear-gradient(180deg,#fff5f5,#fff);padding:14px;border-radius:10px}
+    .danger-zone h5{color:var(--kb-danger);margin:0 0 8px}
+    @media (max-width:767px){.card{margin:12px;padding:14px}}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h3>Account & Security</h3>
+      <a href="settings.html" class="btn btn-sm btn-outline-secondary">Back</a>
+    </div>
+
+    <div id="profileBox" class="mb-3">
+      <div><strong>Full Name:</strong> <span id="pf-fullname">—</span></div>
+      <div><strong>Username:</strong> <span id="pf-username">—</span></div>
+      <div><strong>Email:</strong> <span id="pf-email">—</span></div>
+      <div><strong>Role:</strong> <span id="pf-role">—</span></div>
+    </div>
+
+    <hr>
+    <h6>Change Password</h6>
+    <form id="changePwForm">
+      <div class="mb-2">
+        <label class="form-label">Old password</label>
+        <input type="password" id="oldPw" class="form-control" required minlength="1">
+      </div>
+      <div class="mb-2">
+        <label class="form-label">New password</label>
+        <input type="password" id="newPw" class="form-control" required minlength="6">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Confirm new password</label>
+        <input type="password" id="confirmPw" class="form-control" required minlength="6">
+      </div>
+      <div id="pwStatus"></div>
+      <button class="btn btn-primary btn-sm" type="submit">Change password</button>
+    </form>
+
+  <script>
+    const API_BASE = 'http://127.0.0.1:8001';
+    function showToast(msg, type='info'){
+      const el = document.createElement('div'); el.className = `toast align-items-center text-bg-${type} border-0`; el.role='alert'; el.ariaLive='assertive'; el.ariaAtomic='true';
+      el.style.position='fixed'; el.style.right='20px'; el.style.top='20px'; el.style.zIndex=9999; el.style.padding='10px'; el.innerText = msg;
+      document.body.appendChild(el); setTimeout(()=>el.remove(),3000);
+    }
+
+    async function apiFetch(path, opts={}){
+      opts.headers = opts.headers || {};
+      const token = localStorage.getItem('kb_token');
+      if(token) opts.headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(API_BASE + path, opts);
+      return res;
+    }
+
+    async function loadProfile(){
+      try{
+        const r = await apiFetch('/users/me');
+        if(!r.ok){ showToast('Failed to load profile', 'danger'); return; }
+        const p = await r.json();
+        document.getElementById('pf-fullname').innerText = p.full_name || '';
+        document.getElementById('pf-username').innerText = p.username || '';
+        document.getElementById('pf-email').innerText = p.email || '';
+        document.getElementById('pf-role').innerText = p.role || '';
+      }catch(err){ showToast('Profile error: '+err.message, 'danger'); }
+    }
+
+    document.getElementById('changePwForm').addEventListener('submit', async function(e){
+      e.preventDefault();
+      const oldPw = document.getElementById('oldPw').value.trim();
+      const newPw = document.getElementById('newPw').value.trim();
+      const confirmPw = document.getElementById('confirmPw').value.trim();
+      const status = document.getElementById('pwStatus'); status.innerHTML = '';
+      if(newPw !== confirmPw){ status.innerHTML = '<div class="text-danger small">New passwords do not match</div>'; return; }
+      try{
+        const r = await apiFetch('/users/change-password', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ old_password: oldPw, new_password: newPw }) });
+        const j = await r.json();
+        if(!r.ok){ status.innerHTML = `<div class='text-danger small'>${j.detail || j.message || 'Failed'}</div>`; return; }
+        status.innerHTML = `<div class='text-success small'>${j.message || 'Password changed'}</div>`;
+      }catch(err){ status.innerHTML = `<div class='text-danger small'>Error: ${err.message}</div>`; }
+    });
+
+    // Logout actions
+    document.getElementById('manualLogout').addEventListener('click', ()=>{
+      localStorage.removeItem('kb_token');
+      showToast('Local token cleared', 'warning');
+    });
+    document.getElementById('logoutBtnTop').addEventListener('click', ()=>{
+      localStorage.removeItem('kb_token');
+      localStorage.removeItem('kb_role');
+      window.location.href = 'login.html';
+    });
+    document.getElementById('logoutBtn')?.addEventListener('click', ()=>{
+      localStorage.removeItem('kb_token');
+      localStorage.removeItem('kb_role');
+      window.location.href = 'login.html';
+    });
+
+    // init
+    loadProfile();
+  </script>
+</body>
+</html>
