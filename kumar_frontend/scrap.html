@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KumarBrothers — Scrap Inventory</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="css/main.css" rel="stylesheet">
+  <style>
+    .scrap-pending { background-color: #fff3cd !important; }
+    .scrap-disposed { background-color: #f8d7da !important; }
+    .scrap-returned { background-color: #d1e7dd !important; }
+    .grouped-item { border-left: 4px solid #0d6efd; }
+    .drop-zone { border: 2px dashed #ccc; padding: 40px; text-align: center; cursor: pointer; }
+    .drop-zone.dragover { border-color: #0d6efd; background: #f0f7ff; }
+  </style>
+</head>
+<body>
+
+<nav class="kb-navbar d-flex align-items-center justify-content-between">
+  <div class="d-flex align-items-center gap-3">
+    <div class="navbar-brand">KumarBrothers</div>
+    <div class="d-none d-lg-flex">
+      <a class="nav-link text-white ms-3" href="index.html">Dashboard</a>
+      <a class="nav-link text-white ms-3" href="raw_material.html">Inventory</a>
+      <a class="nav-link text-white ms-3" href="scrap.html">Scrap</a>
+      <a class="nav-link text-white ms-3" href="reusable.html">Reusable</a>
+      <a class="nav-link text-white ms-3" href="customers.html">Customers</a>
+      <a class="nav-link text-white ms-3" href="tracking_v2.html">Tracking</a>
+      <a class="nav-link text-white ms-3" href="settings.html">Settings</a>
+      <a class="nav-link text-white ms-3 kb-logout" href="#">Logout</a>
+    </div>
+  </div>
+  <div class="d-flex align-items-center gap-3">
+    <div class="small-muted">Role:</div>
+    <div id="current-role" class="role-badge">Loading...</div>
+  </div>
+</nav>
+
+<div class="container-fluid main-container">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold mb-0">Scrap Inventory</h2>
+      <small class="text-muted">Track scrap materials after dispatch. Upload CSV or add manually.</small>
+    </div>
+    <div>
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadScrapModal">📤 Upload Scrap CSV</button>
+      <button class="btn btn-success ms-2" data-bs-toggle="modal" data-bs-target="#addScrapModal">+ Add Scrap</button>
+      <button class="btn btn-outline-primary ms-2" onclick="refreshScrap()">🔄 Refresh</button>
+    </div>
+  </div>
+
+  <!-- Quick Stats -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card p-3">
+        <small class="text-muted">Total Scrap Weight</small>
+        <h4 id="statTotalScrap">0 kg</h4>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card p-3">
+        <small class="text-muted">Pending Review</small>
+        <h4 id="statPending" class="text-warning">0 kg</h4>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card p-3">
+        <small class="text-muted">Reusable Available</small>
+        <h4 id="statReusable" class="text-success">0 kg</h4>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card p-3">
+        <small class="text-muted">Scrap Rate</small>
+        <h4 id="statScrapRate" class="text-danger">0%</h4>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label">Search Material</label>
+          <input type="text" class="form-control" id="fMaterial" placeholder="Material name...">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Status</label>
+          <select class="form-select" id="fStatus">
+            <option value="">All</option>
+            <option value="pending">Pending</option>
+            <option value="returned_to_inventory">Returned</option>
+            <option value="disposed">Disposed</option>
+            <option value="recycled">Recycled</option>
+            <option value="sold">Sold</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Reason</label>
+          <select class="form-select" id="fReason">
+            <option value="">All</option>
+            <option value="cutting_waste">Cutting Waste</option>
+            <option value="defect">Defect</option>
+            <option value="damage">Damage</option>
+            <option value="overrun">Overrun</option>
+            <option value="leftover">Leftover</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-primary w-100" onclick="refreshScrap()">Search</button>
+        </div>
+        <div class="col-md-3 text-end">
+          <button class="btn btn-outline-success" onclick="bulkAction('return_to_inventory')">↩ Return Selected</button>
+          <button class="btn btn-outline-danger ms-1" onclick="bulkAction('dispose')">🗑 Dispose Selected</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scrap Table -->
+  <div class="card shadow-sm border-0">
+    <div class="card-body">
+      <h5 class="fw-semibold mb-3">Scrap Records</h5>
+      <div class="table-responsive">
+        <table class="table align-middle" id="scrapTable">
+          <thead class="table-light">
+            <tr>
+              <th><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
+              <th>Material</th>
+              <th>Dimensions</th>
+              <th>Weight (kg)</th>
+              <th>Qty</th>
+              <th>Reason</th>
+              <th>Status</th>
+              <th>Date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="scrapTableBody">
+            <tr><td colspan="9" class="text-center text-muted">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Upload Scrap CSV Modal -->
+<div class="modal fade" id="uploadScrapModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Upload Scrap CSV (After Dispatch)</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info">
+          <strong>CSV Format:</strong> material_name, dimensions, weight_kg, quantity, reason_code
+          <br><small>Reason codes: cutting_waste, defect, damage, overrun, leftover</small>
+        </div>
+        
+        <div class="mb-3">
+          <label class="form-label">Select Customer/Project (Optional)</label>
+          <select class="form-select" id="uploadCustomerId">
+            <option value="">-- No Customer --</option>
+          </select>
+        </div>
+        
+        <div class="drop-zone" id="dropZone">
+          <p class="mb-2">📁 Drop CSV/Excel file here or click to browse</p>
+          <input type="file" id="scrapFileInput" accept=".csv,.xlsx" style="display:none">
+          <small class="text-muted">Supports .csv and .xlsx files</small>
+        </div>
+        
+        <div id="uploadPreview" class="mt-3 d-none">
+          <h6>Preview - Grouped Similar Items:</h6>
+          <div class="table-responsive" style="max-height: 300px;">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Material</th>
+                  <th>Dimensions</th>
+                  <th>Total Weight</th>
+                  <th>Total Qty</th>
+                </tr>
+              </thead>
+              <tbody id="previewBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirmUploadBtn" disabled>Import Scrap Records</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Scrap Manual Modal -->
+<div class="modal fade" id="addScrapModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add Scrap Record</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Material Name *</label>
+          <input type="text" class="form-control" id="scrapMaterial" placeholder="e.g., UB203X133X25">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Dimensions</label>
+          <input type="text" class="form-control" id="scrapDimensions" placeholder="e.g., 500mm x 100mm">
+        </div>
+        <div class="row">
+          <div class="col-6 mb-3">
+            <label class="form-label">Weight (kg) *</label>
+            <input type="number" step="0.01" class="form-control" id="scrapWeight" value="0">
+          </div>
+          <div class="col-6 mb-3">
+            <label class="form-label">Quantity</label>
+            <input type="number" class="form-control" id="scrapQty" value="1">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Reason Code *</label>
+          <select class="form-select" id="scrapReason">
+            <option value="cutting_waste">Cutting Waste</option>
+            <option value="leftover">Leftover</option>
+            <option value="defect">Defect</option>
+            <option value="damage">Damage</option>
+            <option value="overrun">Overrun</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Notes</label>
+          <textarea class="form-control" id="scrapNotes" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="addScrapBtn">Add Scrap</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Action Modal for individual items -->
+<div class="modal fade" id="actionModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Scrap Action</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p id="actionItemInfo"></p>
+        <div class="d-grid gap-2">
+          <button class="btn btn-success btn-lg" onclick="performAction('return')">
+            ↩ Return to Inventory<br><small>Add back to raw materials</small>
+          </button>
+          <button class="btn btn-info btn-lg" onclick="performAction('reusable')">
+            ♻ Move to Reusable Stock<br><small>Save as offcut for future use</small>
+          </button>
+          <button class="btn btn-warning btn-lg" onclick="performAction('dispose')">
+            🗑 Mark as Disposed<br><small>Cannot be used, log as waste</small>
+          </button>
+          <button class="btn btn-secondary btn-lg" onclick="performAction('sell')">
+            💰 Mark as Sold<br><small>Sold to scrap dealer</small>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/main.js"></script>
+<script>
+const API_BASE = (typeof KBConfig !== 'undefined') ? KBConfig.API_BASE : 'http://127.0.0.1:8000';
+let selectedRecordId = null;
+let uploadedData = null;
+
+function escapeHtml(s) { 
+  return String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); 
+}
+
+function reasonBadge(reason) {
+  const colors = {
+    'cutting_waste': 'bg-warning text-dark',
+    'defect': 'bg-danger',
+    'damage': 'bg-danger',
+    'overrun': 'bg-info',
+    'leftover': 'bg-secondary',
+  };
+  return `<span class="badge ${colors[reason] || 'bg-secondary'}">${escapeHtml(reason)}</span>`;
+}
+
+function statusBadge(status) {
+  const colors = {
+    'pending': 'bg-warning text-dark',
+    'returned_to_inventory': 'bg-success',
+    'disposed': 'bg-danger',
+    'recycled': 'bg-info',
+    'sold': 'bg-primary',
+  };
+  const labels = {
+    'pending': 'Pending Review',
+    'returned_to_inventory': 'Returned',
+    'disposed': 'Disposed',
+    'recycled': 'Recycled',
+    'sold': 'Sold',
+  };
+  return `<span class="badge ${colors[status] || 'bg-secondary'}">${labels[status] || status}</span>`;
+}
+
+async function loadStats() {
+  try {
+    const [summary, analytics] = await Promise.all([
+      fetch(`${API_BASE}/scrap/summary`).then(r => r.json()),
+      fetch(`${API_BASE}/scrap/analytics?days=30`).then(r => r.json()),
+    ]);
+    
+    document.getElementById('statTotalScrap').textContent = `${summary.scrap_total_kg} kg`;
+    document.getElementById('statPending').textContent = `${summary.scrap_pending_kg} kg`;
+    document.getElementById('statReusable').textContent = `${summary.reusable_available_kg} kg`;
+    document.getElementById('statScrapRate').textContent = `${analytics.scrap_rate_pct}%`;
+  } catch(e) {
+    console.error('Stats error:', e);
+  }
+}
+
+async function refreshScrap() {
+  try {
+    const params = new URLSearchParams();
+    const material = document.getElementById('fMaterial').value;
+    const status = document.getElementById('fStatus').value;
+    const reason = document.getElementById('fReason').value;
+    
+    if(material) params.append('material_name', material);
+    if(status) params.append('status', status);
+    if(reason) params.append('reason_code', reason);
+    
+    const url = params.toString() ? `${API_BASE}/scrap/records?${params}` : `${API_BASE}/scrap/records`;
+    const res = await fetch(url);
+    const records = await res.json();
+    
+    renderScrapTable(records);
+    loadStats();
+  } catch(e) {
+    console.error('Refresh error:', e);
+  }
+}
+
+function renderScrapTable(records) {
+  const tbody = document.getElementById('scrapTableBody');
+  tbody.innerHTML = '';
+  
+  if(!records || records.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No scrap records found</td></tr>';
+    return;
+  }
+  
+  records.forEach(r => {
+    const rowClass = r.status === 'pending' ? 'scrap-pending' : 
+                     r.status === 'disposed' ? 'scrap-disposed' :
+                     r.status === 'returned_to_inventory' ? 'scrap-returned' : '';
+    const tr = document.createElement('tr');
+    tr.className = rowClass;
+    tr.innerHTML = `
+      <td><input type="checkbox" class="scrap-checkbox" value="${r.id}"></td>
+      <td><strong>${escapeHtml(r.material_name)}</strong></td>
+      <td>${escapeHtml(r.dimensions || '-')}</td>
+      <td>${r.weight_kg.toFixed(2)}</td>
+      <td>${r.quantity || 1}</td>
+      <td>${reasonBadge(r.reason_code)}</td>
+      <td>${statusBadge(r.status)}</td>
+      <td><small>${new Date(r.created_at).toLocaleDateString()}</small></td>
+      <td>
+        ${r.status === 'pending' ? `
+          <button class="btn btn-sm btn-outline-primary" onclick="openActionModal(${r.id}, '${escapeHtml(r.material_name)}', ${r.weight_kg})">
+            Action
+          </button>
+        ` : '-'}
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function toggleSelectAll() {
+  const checked = document.getElementById('selectAll').checked;
+  document.querySelectorAll('.scrap-checkbox').forEach(cb => cb.checked = checked);
+}
+
+function getSelectedIds() {
+  return Array.from(document.querySelectorAll('.scrap-checkbox:checked')).map(cb => parseInt(cb.value));
+}
+
+async function bulkAction(action) {
+  const ids = getSelectedIds();
+  if(ids.length === 0) {
+    alert('Please select items first');
+    return;
+  }
+  
+  if(!confirm(`${action === 'dispose' ? 'Dispose' : 'Return to inventory'} ${ids.length} selected items?`)) return;
+  
+  try {
+    const res = await fetch(`${API_BASE}/scrap/bulk-action?action=${action}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(ids),
+    });
+    
+    if(res.ok) {
+      alert('Action completed!');
+      refreshScrap();
+    } else {
+      alert('Action failed');
+    }
+  } catch(e) {
+    console.error('Bulk action error:', e);
+    alert('Error performing action');
+  }
+}
+
+function openActionModal(id, material, weight) {
+  selectedRecordId = id;
+  document.getElementById('actionItemInfo').innerHTML = `
+    <strong>Material:</strong> ${escapeHtml(material)}<br>
+    <strong>Weight:</strong> ${weight} kg
+  `;
+  new bootstrap.Modal(document.getElementById('actionModal')).show();
+}
+
+async function performAction(action) {
+  if(!selectedRecordId) return;
+  
+  try {
+    let endpoint, method = 'PUT';
+    
+    switch(action) {
+      case 'return':
+        endpoint = `${API_BASE}/scrap/records/${selectedRecordId}/return-to-inventory`;
+        break;
+      case 'reusable':
+        endpoint = `${API_BASE}/scrap/records/${selectedRecordId}/move-to-reusable`;
+        break;
+      case 'dispose':
+        endpoint = `${API_BASE}/scrap/records/${selectedRecordId}/status?status=disposed`;
+        break;
+      case 'sell':
+        endpoint = `${API_BASE}/scrap/records/${selectedRecordId}/status?status=sold`;
+        break;
+    }
+    
+    const res = await fetch(endpoint, { method });
+    if(res.ok) {
+      bootstrap.Modal.getInstance(document.getElementById('actionModal')).hide();
+      refreshScrap();
+    } else {
+      alert('Action failed');
+    }
+  } catch(e) {
+    console.error('Action error:', e);
+    alert('Error performing action');
+  }
+}
+
+// Add scrap manually
+document.getElementById('addScrapBtn').addEventListener('click', async function() {
+  const data = {
+    material_name: document.getElementById('scrapMaterial').value.trim(),
+    dimensions: document.getElementById('scrapDimensions').value.trim(),
+    weight_kg: parseFloat(document.getElementById('scrapWeight').value) || 0,
+    quantity: parseInt(document.getElementById('scrapQty').value) || 1,
+    reason_code: document.getElementById('scrapReason').value,
+    notes: document.getElementById('scrapNotes').value.trim(),
+  };
+  
+  if(!data.material_name || data.weight_kg <= 0) {
+    alert('Material name and weight are required');
+    return;
+  }
+  
+  try {
+    const res = await fetch(`${API_BASE}/scrap/records`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data),
+    });
+    
+    if(res.ok) {
+      bootstrap.Modal.getInstance(document.getElementById('addScrapModal')).hide();
+      // Reset form
+      document.getElementById('scrapMaterial').value = '';
+      document.getElementById('scrapDimensions').value = '';
+      document.getElementById('scrapWeight').value = '0';
+      document.getElementById('scrapQty').value = '1';
+      document.getElementById('scrapNotes').value = '';
+      refreshScrap();
+    } else {
+      alert('Failed to add scrap');
+    }
+  } catch(e) {
+    console.error('Add error:', e);
+    alert('Error adding scrap');
+  }
+});
+
+// CSV Upload handling
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('scrapFileInput');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if(file) handleFile(file);
+});
+fileInput.addEventListener('change', (e) => {
+  if(e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+async function handleFile(file) {
+  dropZone.innerHTML = `<p>📄 ${escapeHtml(file.name)}</p><small>Processing...</small>`;
+  
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const customerId = document.getElementById('uploadCustomerId').value;
+  const url = customerId 
+    ? `${API_BASE}/scrap/upload-csv?customer_id=${customerId}`
+    : `${API_BASE}/scrap/upload-csv`;
+  
+  try {
+    const res = await fetch(url, { method: 'POST', body: formData });
+    const data = await res.json();
+    
+    if(res.ok) {
+      uploadedData = data;
+      showPreview(data);
+      document.getElementById('confirmUploadBtn').disabled = false;
+    } else {
+      alert('Upload failed: ' + (data.detail || 'Unknown error'));
+      resetDropZone();
+    }
+  } catch(e) {
+    console.error('Upload error:', e);
+    alert('Error uploading file');
+    resetDropZone();
+  }
+}
+
+function showPreview(data) {
+  const tbody = document.getElementById('previewBody');
+  tbody.innerHTML = '';
+  
+  data.grouped_items.forEach(item => {
+    const tr = document.createElement('tr');
+    tr.className = 'grouped-item';
+    tr.innerHTML = `
+      <td>${escapeHtml(item.material_name)}</td>
+      <td>${escapeHtml(item.dimensions || '-')}</td>
+      <td><strong>${item.total_weight_kg.toFixed(2)} kg</strong></td>
+      <td>${item.total_quantity}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+  
+  document.getElementById('uploadPreview').classList.remove('d-none');
+  dropZone.innerHTML = `<p class="text-success">✓ ${data.records_count} records imported</p>
+    <p><strong>Total: ${data.total_weight_kg.toFixed(2)} kg</strong></p>`;
+}
+
+function resetDropZone() {
+  dropZone.innerHTML = `<p class="mb-2">📁 Drop CSV/Excel file here or click to browse</p>
+    <input type="file" id="scrapFileInput" accept=".csv,.xlsx" style="display:none">
+    <small class="text-muted">Supports .csv and .xlsx files</small>`;
+}
+
+document.getElementById('confirmUploadBtn').addEventListener('click', function() {
+  bootstrap.Modal.getInstance(document.getElementById('uploadScrapModal')).hide();
+  resetDropZone();
+  document.getElementById('uploadPreview').classList.add('d-none');
+  document.getElementById('confirmUploadBtn').disabled = true;
+  refreshScrap();
+});
+
+// Load customers for dropdown
+async function loadCustomers() {
+  try {
+    const res = await fetch(`${API_BASE}/customers/`);
+    const customers = await res.json();
+    const select = document.getElementById('uploadCustomerId');
+    customers.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name;
+      select.appendChild(opt);
+    });
+  } catch(e) {
+    console.error('Load customers error:', e);
+  }
+}
+
+// Auto-refresh every 30 seconds
+setInterval(refreshScrap, 30000);
+
+// Initial load
+loadCustomers();
+refreshScrap();
+</script>
+</body>
+</html>

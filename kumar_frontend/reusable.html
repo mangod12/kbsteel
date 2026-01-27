@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KumarBrothers — Reusable Stock</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="css/main.css" rel="stylesheet">
+  <style>
+    .grade-A { border-left: 4px solid #28a745; }
+    .grade-B { border-left: 4px solid #ffc107; }
+    .grade-C { border-left: 4px solid #dc3545; }
+    .match-card { border: 2px solid #0d6efd; background: #f0f7ff; }
+  </style>
+</head>
+<body>
+
+<nav class="kb-navbar d-flex align-items-center justify-content-between">
+  <div class="d-flex align-items-center gap-3">
+    <div class="navbar-brand">KumarBrothers</div>
+    <div class="d-none d-lg-flex">
+      <a class="nav-link text-white ms-3" href="index.html">Dashboard</a>
+      <a class="nav-link text-white ms-3" href="raw_material.html">Inventory</a>
+      <a class="nav-link text-white ms-3" href="scrap.html">Scrap</a>
+      <a class="nav-link text-white ms-3" href="reusable.html">Reusable</a>
+      <a class="nav-link text-white ms-3" href="customers.html">Customers</a>
+      <a class="nav-link text-white ms-3" href="tracking_v2.html">Tracking</a>
+      <a class="nav-link text-white ms-3" href="settings.html">Settings</a>
+      <a class="nav-link text-white ms-3 kb-logout" href="#">Logout</a>
+    </div>
+  </div>
+  <div class="d-flex align-items-center gap-3">
+    <div class="small-muted">Role:</div>
+    <div id="current-role" class="role-badge">Loading...</div>
+  </div>
+</nav>
+
+<div class="container-fluid main-container">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold mb-0">Reusable Stock</h2>
+      <small class="text-muted">Offcuts and leftover pieces available for reuse. Use before cutting new material!</small>
+    </div>
+    <div>
+      <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#findMatchModal">🔍 Find Match</button>
+      <button class="btn btn-success ms-2" data-bs-toggle="modal" data-bs-target="#addReusableModal">+ Add Reusable</button>
+      <button class="btn btn-outline-primary ms-2" onclick="refreshReusable()">🔄 Refresh</button>
+    </div>
+  </div>
+
+  <!-- Quick Stats -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card p-3">
+        <small class="text-muted">Total Reusable Weight</small>
+        <h4 id="statTotalWeight">0 kg</h4>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card p-3">
+        <small class="text-muted">Available Items</small>
+        <h4 id="statItemCount" class="text-success">0</h4>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card p-3">
+        <small class="text-muted">Grade A (Best)</small>
+        <h4 id="statGradeA" class="text-success">0</h4>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card p-3">
+        <small class="text-muted">Recovery Rate</small>
+        <h4 id="statRecoveryRate" class="text-info">0%</h4>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label">Search Material</label>
+          <input type="text" class="form-control" id="fMaterial" placeholder="Material name...">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Quality Grade</label>
+          <select class="form-select" id="fGrade">
+            <option value="">All</option>
+            <option value="A">A - Good</option>
+            <option value="B">B - Minor Defects</option>
+            <option value="C">C - Usable</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Min Length (mm)</label>
+          <input type="number" class="form-control" id="fMinLength">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Max Length (mm)</label>
+          <input type="number" class="form-control" id="fMaxLength">
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-primary" onclick="refreshReusable()">Search</button>
+          <label class="ms-3">
+            <input type="checkbox" id="fAvailableOnly" checked> Available Only
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reusable Stock Table -->
+  <div class="card shadow-sm border-0">
+    <div class="card-body">
+      <h5 class="fw-semibold mb-3">Available Reusable Stock</h5>
+      <p class="text-muted small">💡 Tip: Use these offcuts before cutting new material to minimize waste!</p>
+      
+      <div class="table-responsive">
+        <table class="table align-middle" id="reusableTable">
+          <thead class="table-light">
+            <tr>
+              <th>Material</th>
+              <th>Dimensions</th>
+              <th>Length (mm)</th>
+              <th>Weight (kg)</th>
+              <th>Qty</th>
+              <th>Grade</th>
+              <th>Source</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="reusableTableBody">
+            <tr><td colspan="8" class="text-center text-muted">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Find Match Modal -->
+<div class="modal fade" id="findMatchModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Find Matching Reusable Stock</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted">Enter your requirements to find suitable reusable pieces (backfill from scrap).</p>
+        
+        <div class="row g-3 mb-4">
+          <div class="col-md-5">
+            <label class="form-label">Material Name *</label>
+            <input type="text" class="form-control" id="matchMaterial" placeholder="e.g., UB203X133X25">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Required Length (mm) *</label>
+            <input type="number" class="form-control" id="matchLength" placeholder="e.g., 2000">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Tolerance (mm)</label>
+            <input type="number" class="form-control" id="matchTolerance" value="50">
+          </div>
+        </div>
+        
+        <button class="btn btn-primary mb-3" onclick="findMatches()">🔍 Search Matches</button>
+        
+        <div id="matchResults" class="d-none">
+          <h6>Matching Pieces:</h6>
+          <div id="matchList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Reusable Modal -->
+<div class="modal fade" id="addReusableModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add Reusable Stock</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Material Name *</label>
+          <input type="text" class="form-control" id="newMaterial" placeholder="e.g., UB203X133X25">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Dimensions (text) *</label>
+          <input type="text" class="form-control" id="newDimensions" placeholder="e.g., 1500mm x 150mm beam section">
+        </div>
+        <div class="row">
+          <div class="col-4 mb-3">
+            <label class="form-label">Length (mm)</label>
+            <input type="number" class="form-control" id="newLength">
+          </div>
+          <div class="col-4 mb-3">
+            <label class="form-label">Width (mm)</label>
+            <input type="number" class="form-control" id="newWidth">
+          </div>
+          <div class="col-4 mb-3">
+            <label class="form-label">Weight (kg) *</label>
+            <input type="number" step="0.01" class="form-control" id="newWeight" value="0">
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-6 mb-3">
+            <label class="form-label">Quantity</label>
+            <input type="number" class="form-control" id="newQty" value="1">
+          </div>
+          <div class="col-6 mb-3">
+            <label class="form-label">Quality Grade</label>
+            <select class="form-select" id="newGrade">
+              <option value="A">A - Good (no defects)</option>
+              <option value="B">B - Minor Defects</option>
+              <option value="C">C - Usable with Caution</option>
+            </select>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Notes</label>
+          <textarea class="form-control" id="newNotes" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="addReusableBtn">Add Stock</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/main.js"></script>
+<script>
+const API_BASE = (typeof KBConfig !== 'undefined') ? KBConfig.API_BASE : 'http://127.0.0.1:8000';
+
+function escapeHtml(s) { 
+  return String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); 
+}
+
+function gradeBadge(grade) {
+  const colors = { 'A': 'bg-success', 'B': 'bg-warning text-dark', 'C': 'bg-danger' };
+  const labels = { 'A': 'A - Good', 'B': 'B - Minor', 'C': 'C - Usable' };
+  return `<span class="badge ${colors[grade] || 'bg-secondary'}">${labels[grade] || grade}</span>`;
+}
+
+async function loadStats() {
+  try {
+    const [summary, analytics] = await Promise.all([
+      fetch(`${API_BASE}/scrap/summary`).then(r => r.json()),
+      fetch(`${API_BASE}/scrap/analytics?days=30`).then(r => r.json()),
+    ]);
+    
+    document.getElementById('statTotalWeight').textContent = `${summary.reusable_available_kg} kg`;
+    document.getElementById('statItemCount').textContent = summary.reusable_items_count;
+    document.getElementById('statRecoveryRate').textContent = `${analytics.recovery_rate_pct}%`;
+    
+    // Count grade A items
+    const reusable = await fetch(`${API_BASE}/scrap/reusable?quality_grade=A`).then(r => r.json());
+    document.getElementById('statGradeA').textContent = reusable.length;
+  } catch(e) {
+    console.error('Stats error:', e);
+  }
+}
+
+async function refreshReusable() {
+  try {
+    const params = new URLSearchParams();
+    const material = document.getElementById('fMaterial').value;
+    const grade = document.getElementById('fGrade').value;
+    const minLen = document.getElementById('fMinLength').value;
+    const maxLen = document.getElementById('fMaxLength').value;
+    const availableOnly = document.getElementById('fAvailableOnly').checked;
+    
+    if(material) params.append('material_name', material);
+    if(grade) params.append('quality_grade', grade);
+    if(minLen) params.append('min_length', minLen);
+    if(maxLen) params.append('max_length', maxLen);
+    params.append('available_only', availableOnly);
+    
+    const res = await fetch(`${API_BASE}/scrap/reusable?${params}`);
+    const items = await res.json();
+    
+    renderTable(items);
+    loadStats();
+  } catch(e) {
+    console.error('Refresh error:', e);
+  }
+}
+
+function renderTable(items) {
+  const tbody = document.getElementById('reusableTableBody');
+  tbody.innerHTML = '';
+  
+  if(!items || items.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No reusable stock found</td></tr>';
+    return;
+  }
+  
+  items.forEach(item => {
+    const tr = document.createElement('tr');
+    tr.className = `grade-${item.quality_grade}`;
+    tr.innerHTML = `
+      <td><strong>${escapeHtml(item.material_name)}</strong></td>
+      <td>${escapeHtml(item.dimensions)}</td>
+      <td>${item.length_mm ? item.length_mm.toFixed(0) : '-'}</td>
+      <td>${item.weight_kg.toFixed(2)}</td>
+      <td>${item.quantity || 1}</td>
+      <td>${gradeBadge(item.quality_grade)}</td>
+      <td><small class="text-muted">${item.source_item_id ? `Item #${item.source_item_id}` : '-'}</small></td>
+      <td>
+        ${item.is_available ? `
+          <button class="btn btn-sm btn-outline-success" onclick="returnToInventory(${item.id})">↩ Return</button>
+          <button class="btn btn-sm btn-outline-danger ms-1" onclick="markAsScrap(${item.id})">🗑 Scrap</button>
+        ` : '<span class="badge bg-secondary">Used</span>'}
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function findMatches() {
+  const material = document.getElementById('matchMaterial').value.trim();
+  const length = parseFloat(document.getElementById('matchLength').value);
+  const tolerance = parseFloat(document.getElementById('matchTolerance').value) || 50;
+  
+  if(!material || !length) {
+    alert('Please enter material name and required length');
+    return;
+  }
+  
+  try {
+    const res = await fetch(`${API_BASE}/scrap/reusable/find-match?material_name=${encodeURIComponent(material)}&required_length_mm=${length}&tolerance_mm=${tolerance}`);
+    const data = await res.json();
+    
+    const matchList = document.getElementById('matchList');
+    matchList.innerHTML = '';
+    
+    if(data.matches.length === 0) {
+      matchList.innerHTML = '<div class="alert alert-warning">No matching reusable pieces found. Will need to cut from new material.</div>';
+    } else {
+      data.matches.forEach(m => {
+        const wasteClass = m.waste_mm < 100 ? 'text-success' : m.waste_mm < 500 ? 'text-warning' : 'text-danger';
+        const div = document.createElement('div');
+        div.className = 'card match-card mb-2 p-3';
+        div.innerHTML = `
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <strong>${escapeHtml(m.material_name)}</strong><br>
+              <small>${escapeHtml(m.dimensions)}</small><br>
+              <small>Length: <strong>${m.length_mm}mm</strong> | Weight: ${m.weight_kg}kg | Grade: ${gradeBadge(m.quality_grade)}</small>
+            </div>
+            <div class="text-end">
+              <span class="${wasteClass}">Waste: ${m.waste_mm.toFixed(0)}mm</span><br>
+              <button class="btn btn-sm btn-success mt-2" onclick="useReusable(${m.id})">✓ Use This</button>
+            </div>
+          </div>
+        `;
+        matchList.appendChild(div);
+      });
+    }
+    
+    document.getElementById('matchResults').classList.remove('d-none');
+  } catch(e) {
+    console.error('Find match error:', e);
+    alert('Error finding matches');
+  }
+}
+
+async function useReusable(id) {
+  // For now, just mark as used (in real app, would link to production item)
+  if(!confirm('Mark this piece as used?')) return;
+  
+  try {
+    const res = await fetch(`${API_BASE}/scrap/reusable/${id}/use?production_item_id=0`, { method: 'PUT' });
+    if(res.ok) {
+      alert('Marked as used!');
+      bootstrap.Modal.getInstance(document.getElementById('findMatchModal')).hide();
+      refreshReusable();
+    }
+  } catch(e) {
+    console.error('Use error:', e);
+  }
+}
+
+async function returnToInventory(id) {
+  if(!confirm('Return this piece back to main inventory?')) return;
+  
+  try {
+    const res = await fetch(`${API_BASE}/scrap/reusable/${id}/return-to-inventory`, { method: 'PUT' });
+    if(res.ok) {
+      alert('Returned to main inventory!');
+      refreshReusable();
+    }
+  } catch(e) {
+    console.error('Return error:', e);
+    alert('Error returning to inventory');
+  }
+}
+
+async function markAsScrap(id) {
+  if(!confirm('Mark this piece as scrap (unusable)?')) return;
+  
+  try {
+    const res = await fetch(`${API_BASE}/scrap/reusable/${id}/mark-scrap?reason=unusable`, { method: 'PUT' });
+    if(res.ok) {
+      alert('Moved to scrap!');
+      refreshReusable();
+    }
+  } catch(e) {
+    console.error('Scrap error:', e);
+    alert('Error marking as scrap');
+  }
+}
+
+// Add reusable stock
+document.getElementById('addReusableBtn').addEventListener('click', async function() {
+  const data = {
+    material_name: document.getElementById('newMaterial').value.trim(),
+    dimensions: document.getElementById('newDimensions').value.trim(),
+    length_mm: parseFloat(document.getElementById('newLength').value) || null,
+    width_mm: parseFloat(document.getElementById('newWidth').value) || null,
+    weight_kg: parseFloat(document.getElementById('newWeight').value) || 0,
+    quantity: parseInt(document.getElementById('newQty').value) || 1,
+    quality_grade: document.getElementById('newGrade').value,
+    notes: document.getElementById('newNotes').value.trim(),
+  };
+  
+  if(!data.material_name || !data.dimensions || data.weight_kg <= 0) {
+    alert('Material name, dimensions and weight are required');
+    return;
+  }
+  
+  try {
+    const res = await fetch(`${API_BASE}/scrap/reusable`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data),
+    });
+    
+    if(res.ok) {
+      bootstrap.Modal.getInstance(document.getElementById('addReusableModal')).hide();
+      // Reset form
+      document.getElementById('newMaterial').value = '';
+      document.getElementById('newDimensions').value = '';
+      document.getElementById('newLength').value = '';
+      document.getElementById('newWidth').value = '';
+      document.getElementById('newWeight').value = '0';
+      document.getElementById('newQty').value = '1';
+      document.getElementById('newNotes').value = '';
+      refreshReusable();
+    } else {
+      alert('Failed to add stock');
+    }
+  } catch(e) {
+    console.error('Add error:', e);
+    alert('Error adding stock');
+  }
+});
+
+// Auto-refresh every 30 seconds
+setInterval(refreshReusable, 30000);
+
+// Initial load
+refreshReusable();
+</script>
+</body>
+</html>

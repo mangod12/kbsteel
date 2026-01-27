@@ -851,6 +851,7 @@ def get_all_tracking_items(
             "checklist": checklist,
             "notes": item.notes,
             "fabrication_deducted": item.fabrication_deducted,
+            "material_requirements": item.material_requirements,
         })
     
     return result

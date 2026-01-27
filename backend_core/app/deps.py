@@ -14,7 +14,6 @@ from .security import (
     SECRET_KEY,
     ALGORITHM,
     ACCESS_TOKEN_EXPIRE_MINUTES,
-    pwd_context,
     oauth2_scheme,
     verify_password,
     get_password_hash,

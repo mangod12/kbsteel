@@ -183,3 +183,43 @@ class RoleNotificationSetting(Base):
     dispatch_completed = Column(Boolean, default=True)
     updated_at = Column(DateTime, default=datetime.utcnow)
 
+
+class ScrapRecord(Base):
+    """Track scrap/waste materials after dispatch"""
+    __tablename__ = "scrap_records"
+    id = Column(Integer, primary_key=True, index=True)
+    material_name = Column(String, nullable=False)
+    weight_kg = Column(Float, nullable=False)
+    length_mm = Column(Float, nullable=True)  # Dimension for matching
+    width_mm = Column(Float, nullable=True)
+    quantity = Column(Integer, default=1)  # Number of pieces
+    reason_code = Column(String, nullable=False)  # cutting_waste, defect, damage, overrun, leftover
+    source_item_id = Column(Integer, ForeignKey("production_items.id"), nullable=True)
+    source_customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
+    dimensions = Column(String, nullable=True)  # Text description e.g., "200mm x 50mm x 6m"
+    notes = Column(Text, nullable=True)
+    status = Column(String, default="pending")  # pending, returned_to_inventory, disposed, recycled, sold
+    scrap_value = Column(Float, nullable=True)  # Sale value if sold
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ReusableStock(Base):
+    """Track reusable offcuts and leftover pieces that can be used again"""
+    __tablename__ = "reusable_stock"
+    id = Column(Integer, primary_key=True, index=True)
+    material_name = Column(String, nullable=False)
+    length_mm = Column(Float, nullable=True)  # For dimension matching
+    width_mm = Column(Float, nullable=True)
+    weight_kg = Column(Float, nullable=False)
+    quantity = Column(Integer, default=1)  # Number of pieces
+    dimensions = Column(String, nullable=False)  # Text e.g., "1200mm x 150mm beam"
+    source_item_id = Column(Integer, ForeignKey("production_items.id"), nullable=True)
+    source_customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
+    quality_grade = Column(String, default="A")  # A=good, B=minor defects, C=usable with caution
+    notes = Column(Text, nullable=True)
+    is_available = Column(Boolean, default=True)
+    used_in_item_id = Column(Integer, ForeignKey("production_items.id"), nullable=True)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+

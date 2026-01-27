@@ -23,8 +23,8 @@
       <div class="d-none d-lg-flex">
       <a class="nav-link text-white ms-3" href="index.html">Dashboard</a>
       <a class="nav-link text-white ms-3" href="raw_material.html">Inventory</a>
-      <a class="nav-link text-white ms-3" href="grn.html">GRN</a>
-      <a class="nav-link text-white ms-3" href="dispatch.html">Dispatch</a>
+      <a class="nav-link text-white ms-3" href="scrap.html">Scrap</a>
+      <a class="nav-link text-white ms-3" href="reusable.html">Reusable</a>
       <a class="nav-link text-white ms-3" href="customers.html">Customers</a>
       <a class="nav-link text-white ms-3" href="tracking_v2.html">Tracking</a>
       <a class="nav-link text-white ms-3" href="settings.html">Settings</a>
@@ -108,6 +108,61 @@
         <small class="text-muted">Completed</small>
         <h4 id="stageCompleted">0 Jobs</h4>
         <small class="text-muted">Fully dispatched</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loss Analytics Section -->
+  <div class="row g-3 mb-4">
+    <div class="col-12">
+      <div class="card shadow-sm border-0">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-semibold mb-0">📊 Loss Analytics (Last 30 Days)</h5>
+            <div>
+              <a href="scrap.html" class="btn btn-sm btn-outline-warning me-2">View Scrap →</a>
+              <a href="reusable.html" class="btn btn-sm btn-outline-success">View Reusable →</a>
+            </div>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-2">
+              <div class="text-center p-3 bg-light rounded">
+                <small class="text-muted d-block">Scrap Rate</small>
+                <h4 id="scrapRate" class="text-danger mb-0">0%</h4>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="text-center p-3 bg-light rounded">
+                <small class="text-muted d-block">Total Scrap</small>
+                <h4 id="totalScrap" class="text-warning mb-0">0 kg</h4>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="text-center p-3 bg-light rounded">
+                <small class="text-muted d-block">Reusable Stock</small>
+                <h4 id="reusableStock" class="text-success mb-0">0 kg</h4>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="text-center p-3 bg-light rounded">
+                <small class="text-muted d-block">Recovery Rate</small>
+                <h4 id="recoveryRate" class="text-info mb-0">0%</h4>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="text-center p-3 bg-light rounded">
+                <small class="text-muted d-block">Pending Review</small>
+                <h4 id="pendingScrap" class="text-warning mb-0">0 kg</h4>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="text-center p-3 bg-light rounded">
+                <small class="text-muted d-block">Est. Loss Value</small>
+                <h4 id="lossValue" class="text-danger mb-0">₹0</h4>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -314,6 +369,9 @@
       // Update last refresh time
       document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
 
+      // Load loss analytics
+      await loadLossAnalytics();
+
     } catch(err) {
       console.error('Dashboard refresh error:', err);
       // Fallback: try the old endpoint
@@ -322,6 +380,30 @@
       } catch(e) {
         console.error('Legacy dashboard also failed:', e);
       }
+    }
+  }
+
+  // Load loss analytics from scrap API
+  async function loadLossAnalytics() {
+    try {
+      const [analytics, summary] = await Promise.all([
+        fetch(`${API_BASE}/scrap/analytics?days=30`).then(r => r.ok ? r.json() : null),
+        fetch(`${API_BASE}/scrap/summary`).then(r => r.ok ? r.json() : null),
+      ]);
+
+      if(analytics) {
+        document.getElementById('scrapRate').textContent = `${analytics.scrap_rate_pct}%`;
+        document.getElementById('totalScrap').textContent = `${analytics.total_scrap_kg} kg`;
+        document.getElementById('reusableStock').textContent = `${analytics.total_reusable_kg} kg`;
+        document.getElementById('recoveryRate').textContent = `${analytics.recovery_rate_pct}%`;
+        document.getElementById('lossValue').textContent = `₹${analytics.estimated_loss_value.toLocaleString()}`;
+      }
+
+      if(summary) {
+        document.getElementById('pendingScrap').textContent = `${summary.scrap_pending_kg} kg`;
+      }
+    } catch(e) {
+      console.error('Loss analytics error:', e);
     }
   }
 
@@ -344,8 +426,8 @@
   // Initial load
   refreshDashboard();
 
-  // NOTE: Auto-refresh REMOVED - use manual refresh button to avoid UI interference
-  // Users can click the Refresh button when they need updated data
+  // Auto-refresh every 30 seconds for real-time updates
+  setInterval(refreshDashboard, 30000);
 </script>
 </body>
 </html>

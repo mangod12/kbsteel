@@ -13,6 +13,7 @@ from .notifications import router as notifications_router
 from .users import router as users_router
 from .dashboard import router as dashboard_router
 from .tracking_api import router as tracking_api_router
+from .scrap import router as scrap_router
 
 # New v2 API routers for improved steel industry operations
 from .routers.inventory_v2 import router as inventory_v2_router
@@ -62,6 +63,7 @@ def create_app() -> FastAPI:
     app.include_router(excel_router)
     app.include_router(dashboard_router)
     app.include_router(tracking_api_router)
+    app.include_router(scrap_router)
     
     # New v2 routers (improved steel industry operations)
     app.include_router(inventory_v2_router)
