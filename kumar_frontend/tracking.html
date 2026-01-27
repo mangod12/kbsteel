@@ -533,8 +533,7 @@
         // Initial load
         applyTrackingFilters();
 
-        // Auto-refresh every 30 seconds
-        setInterval(applyTrackingFilters, 30000);
+        // NOTE: Auto-refresh REMOVED - use manual refresh to avoid UI interference
 
         // ============ Stage Excel Upload Functions ============
         const stageIcons = { fabrication: '🔧', painting: '🎨', dispatch: '🚚' };

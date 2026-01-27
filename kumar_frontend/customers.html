@@ -17,7 +17,7 @@
           <a class="nav-link text-white ms-3" href="grn.html">GRN</a>
           <a class="nav-link text-white ms-3" href="dispatch.html">Dispatch</a>
           <a class="nav-link text-white ms-3" href="customers.html">Customers</a>
-          <a class="nav-link text-white ms-3" href="tracking.html">Tracking</a>
+          <a class="nav-link text-white ms-3" href="tracking_v2.html">Tracking</a>
           <a class="nav-link text-white ms-3" href="settings.html">Settings</a>
           <a class="nav-link text-white ms-3 kb-logout" href="#">Logout</a>
         </div>
@@ -35,7 +35,8 @@
           <h2 class="fw-bold mb-0">Customers & Projects</h2>
           <small class="text-muted">Overview of all active and completed customer projects</small>
         </div>
-        <div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-primary" onclick="applyCustomerFilters()">🔄 Refresh</button>
           <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addCustomerModal">+ Add Customer</button>
         </div>
       </div>
@@ -423,7 +424,13 @@
               throw new Error(data.detail || 'Import failed');
             }
             
-            // Show detailed success message with material matching info
+            // Show detailed success message with deduplication info
+            let summaryParts = [];
+            if(data.items_created > 0) summaryParts.push(`<strong>${data.items_created}</strong> new items created`);
+            if(data.items_updated > 0) summaryParts.push(`<strong>${data.items_updated}</strong> existing items updated`);
+            if(data.items_skipped > 0) summaryParts.push(`<strong>${data.items_skipped}</strong> completed items skipped`);
+            const summaryText = summaryParts.length > 0 ? summaryParts.join(', ') : 'No changes';
+            
             let matchingInfo = '';
             if(data.material_matching) {
               const m = data.material_matching;
@@ -439,18 +446,18 @@
             
             document.getElementById('uploadStatus').innerHTML = `
               <div class="alert alert-success">
-                <strong>✅ Import Successful!</strong><br>
-                Created <strong>${data.items_created}</strong> tracking items for ${escapeHtml(data.customer_name)}.<br>
-                All items are now in <strong>Fabrication</strong> stage and visible in Tracking.
+                <strong>✅ Import Complete!</strong><br>
+                ${summaryText} for ${escapeHtml(data.customer_name)}.<br>
+                All new items start at <strong>Fabrication</strong> stage.
                 ${matchingInfo}
               </div>
             `;
             
-            // Refresh customer list after 3 seconds
+            // Refresh customer list after 2 seconds
             setTimeout(() => {
               bootstrap.Modal.getInstance(document.getElementById('uploadExcelModal')).hide();
               applyCustomerFilters();
-            }, 3000);
+            }, 2000);
             
           } catch(err) {
             document.getElementById('uploadStatus').innerHTML = `<span class="text-danger">❌ Import failed: ${err.message}</span>`;
@@ -466,8 +473,7 @@
         // initial load
         applyCustomerFilters();
         
-        // Auto-refresh every 30 seconds
-        setInterval(applyCustomerFilters, 30000);
+        // NOTE: Auto-refresh REMOVED - use manual refresh to avoid UI interference
       })();
     </script>
   </body>

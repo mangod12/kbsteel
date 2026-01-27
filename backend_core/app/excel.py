@@ -366,7 +366,16 @@ async def import_tracking_excel(
     # Create lookup dict for quick access
     material_link_by_row = {link["row_idx"]: link for link in material_links}
     
+    # STEP 2: Load existing items for this customer for DEDUPLICATION
+    existing_items = db.query(models.ProductionItem).filter(
+        models.ProductionItem.customer_id == customer_id
+    ).all()
+    existing_codes = {item.item_code.lower(): item for item in existing_items if item.item_code}
+    existing_names = {item.item_name.lower(): item for item in existing_items if item.item_name}
+    
     items_created = 0
+    items_updated = 0
+    items_skipped = 0
     items_with_material_link = 0
     errors = []
     
@@ -378,6 +387,18 @@ async def import_tracking_excel(
             
             # Skip empty rows
             if not item_name or item_name == 'nan' or item_name == 'None':
+                continue
+            
+            # DEDUPLICATION: Check if item already exists by code or name
+            existing_item = None
+            if item_code and item_code.lower() in existing_codes:
+                existing_item = existing_codes[item_code.lower()]
+            elif item_name.lower() in existing_names:
+                existing_item = existing_names[item_name.lower()]
+            
+            # If item exists and fabrication already deducted, skip entirely
+            if existing_item and existing_item.fabrication_deducted:
+                items_skipped += 1
                 continue
             
             section = _to_native(row.get(field_to_col.get('section', ''), None))
@@ -418,34 +439,53 @@ async def import_tracking_excel(
                     }])
                     items_with_material_link += 1
             
-            # Create production item
-            item = models.ProductionItem(
-                customer_id=customer_id,
-                item_code=item_code if item_code and item_code != 'nan' else f"ITEM-{idx + 1}",
-                item_name=item_name,
-                section=str(section) if section and str(section) != 'nan' else None,
-                length_mm=length_mm,
-                quantity=quantity,
-                unit=str(unit) if unit and str(unit) != 'nan' else None,
-                weight_per_unit=weight,
-                material_requirements=material_requirements,  # AUTO-LINKED!
-                notes=str(notes) if notes and str(notes) != 'nan' else None,
-                fabrication_deducted=False,
-            )
-            db.add(item)
-            db.flush()  # Get the item ID
-            
-            # Initialize at Fabrication stage (all items start here)
-            from datetime import datetime
-            stage = models.StageTracking(
-                production_item_id=item.id,
-                stage="fabrication",
-                status="pending",
-                updated_by=current_user.id,
-            )
-            db.add(stage)
-            
-            items_created += 1
+            # UPSERT LOGIC: Update existing item OR create new one
+            if existing_item:
+                # UPDATE existing item (preserving stage progress)
+                existing_item.section = str(section) if section and str(section) != 'nan' else existing_item.section
+                existing_item.length_mm = length_mm if length_mm else existing_item.length_mm
+                existing_item.quantity = quantity
+                existing_item.unit = str(unit) if unit and str(unit) != 'nan' else existing_item.unit
+                existing_item.weight_per_unit = weight if weight else existing_item.weight_per_unit
+                existing_item.notes = str(notes) if notes and str(notes) != 'nan' else existing_item.notes
+                # Only update material_requirements if not already deducted
+                if material_requirements and not existing_item.fabrication_deducted:
+                    existing_item.material_requirements = material_requirements
+                db.add(existing_item)
+                items_updated += 1
+            else:
+                # CREATE new production item
+                item = models.ProductionItem(
+                    customer_id=customer_id,
+                    item_code=item_code if item_code and item_code != 'nan' else f"ITEM-{idx + 1}",
+                    item_name=item_name,
+                    section=str(section) if section and str(section) != 'nan' else None,
+                    length_mm=length_mm,
+                    quantity=quantity,
+                    unit=str(unit) if unit and str(unit) != 'nan' else None,
+                    weight_per_unit=weight,
+                    material_requirements=material_requirements,  # AUTO-LINKED!
+                    notes=str(notes) if notes and str(notes) != 'nan' else None,
+                    fabrication_deducted=False,
+                )
+                db.add(item)
+                db.flush()  # Get the item ID
+                
+                # Initialize at Fabrication stage (all items start here)
+                from datetime import datetime
+                stage = models.StageTracking(
+                    production_item_id=item.id,
+                    stage="fabrication",
+                    status="pending",
+                    updated_by=current_user.id,
+                )
+                db.add(stage)
+                
+                # Add to lookup to prevent duplicates within same import
+                existing_codes[item.item_code.lower()] = item
+                existing_names[item.item_name.lower()] = item
+                
+                items_created += 1
             
         except Exception as e:
             errors.append(f"Row {idx + 1}: {str(e)}")
@@ -462,9 +502,22 @@ async def import_tracking_excel(
     
     db.commit()
     
+    # Build summary message
+    summary_parts = []
+    if items_created > 0:
+        summary_parts.append(f"{items_created} new items created")
+    if items_updated > 0:
+        summary_parts.append(f"{items_updated} existing items updated")
+    if items_skipped > 0:
+        summary_parts.append(f"{items_skipped} completed items skipped")
+    
+    summary_msg = ", ".join(summary_parts) if summary_parts else "No items processed"
+    
     return {
-        "message": f"Successfully imported {items_created} tracking items for customer '{customer.name}'",
+        "message": f"Import complete for '{customer.name}': {summary_msg}",
         "items_created": items_created,
+        "items_updated": items_updated,
+        "items_skipped": items_skipped,
         "items_with_material_link": items_with_material_link,
         "customer_id": customer_id,
         "customer_name": customer.name,
